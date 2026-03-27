@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Submit Weekly Steps</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f2f2f7;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  .card{background:#fff;border-radius:20px;padding:28px 24px;max-width:360px;width:100%;text-align:center}
+  h1{font-size:22px;font-weight:600;color:#1c1c1e;margin:0 0 6px}
+  .sub{font-size:14px;color:#8e8e93;margin-bottom:22px;line-height:1.5}
+  .steps-box{background:#f2f2f7;border-radius:14px;padding:14px 16px;margin-bottom:8px}
+  .steps-num{font-size:48px;font-weight:700;color:#007AFF;line-height:1}
+  .steps-lbl{font-size:13px;color:#8e8e93;margin-top:3px}
+  .week-lbl{font-size:12px;color:#8e8e93;margin-bottom:22px}
+  .field{margin-bottom:12px;text-align:left}
+  label{display:block;font-size:13px;font-weight:500;color:#3c3c43;margin-bottom:5px}
+  input{width:100%;padding:12px 14px;border-radius:10px;border:1.5px solid #e5e5ea;font-size:16px;color:#1c1c1e;background:#fff;outline:none;-webkit-appearance:none;transition:border-color .15s}
+  input:focus{border-color:#007AFF}
+  input.err{border-color:#ff3b30}
+  input:disabled{background:#f2f2f7;color:#8e8e93}
+  .err-txt{color:#ff3b30;font-size:11px;margin-top:4px}
+  .prefill-note{background:#e8f4ff;border-radius:8px;padding:8px 12px;font-size:12px;color:#0c447c;margin-bottom:16px;text-align:left}
+  .btn{width:100%;padding:15px;border-radius:14px;border:none;font-size:17px;font-weight:600;cursor:pointer;margin-top:8px;transition:opacity .15s,transform .1s}
+  .btn:active{transform:scale(.97)}
+  .btn-blue{background:#007AFF;color:#fff}
+  .btn-blue:hover{opacity:.9}
+  .btn-blue:disabled{background:#b0c8f0;cursor:default;transform:none}
+  .btn-green{background:#34C759;color:#fff}
+  .status{margin-top:14px;padding:12px 14px;border-radius:10px;font-size:14px;font-weight:500;text-align:left;line-height:1.5;display:none}
+  .status.success{background:#d1fae5;color:#065f46;display:block}
+  .status.error{background:#fee2e2;color:#991b1b;display:block}
+  .no-steps{background:#fff3cd;border-radius:14px;padding:16px;text-align:left;margin-bottom:16px}
+  .no-steps h2{font-size:15px;color:#92400e;margin-bottom:6px}
+  .no-steps p{font-size:13px;color:#78350f;line-height:1.5}
+  code{background:#fde68a;padding:1px 5px;border-radius:4px;font-size:11px;font-family:monospace}
+</style>
+</head>
+<body>
+<div class="card" id="app">
+  <div style="color:#8e8e93;font-size:14px">Loading…</div>
+</div>
+
+<script>
+/* ─────────────────────────────────────────────
+   CONFIG — these are pre-filled for you
+   ───────────────────────────────────────────── */
+const API_TOKEN = "63fgwAqpDmZRmoOfhLKxae4CeY5wXGEVQthbK";
+const SHEET_ID  = "6765042545414020";
+const COL = {
+  firstName : 6340636816215940,
+  lastName  : 4088837002530692,
+  weekStart : 8592436629901188,
+  weekEnd   : 4233389764022148,
+  steps     : 2039353233936260,
+  source    : 6594197189857156
+};
+/* ─────────────────────────────────────────────
+   END CONFIG
+   ───────────────────────────────────────────── */
+
+function param(k){ return new URLSearchParams(location.search).get(k)||""; }
+
+function weekDates(){
+  const t=new Date(), day=t.getDay();
+  const mon=new Date(t); mon.setDate(t.getDate()-((day+6)%7));
+  const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  const iso=d=>d.toISOString().split("T")[0];
+  const disp=d=>d.toLocaleDateString("en-US",{month:"short",day:"numeric"});
+  return{s:iso(mon),e:iso(sun),label:disp(mon)+" – "+disp(sun)};
+}
+
+function fmt(n){const v=parseInt(n);return isNaN(v)?"—":v.toLocaleString();}
+
+function render(){
+  const app=document.getElementById("app");
+  const steps=param("steps");
+  const week=weekDates();
+
+  if(!steps||isNaN(parseInt(steps))){
+    app.innerHTML=`
+      <div style="font-size:44px;margin-bottom:8px">🏃</div>
+      <h1>Weekly steps</h1>
+      <div class="no-steps">
+        <h2>No step count found</h2>
+        <p>This page should be opened from your iOS Shortcut with your step total in the URL:<br><br>
+        <code>?steps=52430</code><br><br>
+        Also optionally pass your name:<br>
+        <code>&firstName=Jane&lastName=Smith</code></p>
+      </div>
+      <p style="font-size:12px;color:#8e8e93">Contact your admin if you need help setting up your Shortcut.</p>`;
+    return;
+  }
+
+  const fn=param("firstName");
+  const ln=param("lastName");
+  const prefilled=!!(fn||ln);
+
+  app.innerHTML=`
+    <div style="font-size:44px;margin-bottom:8px">🏃</div>
+    <h1>Weekly steps</h1>
+    <p class="sub">${prefilled?"Your details are pre-filled — just tap Submit":"Confirm your name and submit"}</p>
+    ${prefilled?`<div class="prefill-note">Pre-filled from your iOS Shortcut — edit if needed</div>`:""}
+    <div class="steps-box">
+      <div class="steps-num">${fmt(steps)}</div>
+      <div class="steps-lbl">steps this week</div>
+    </div>
+    <div class="week-lbl">${week.label}</div>
+    <div class="field">
+      <label for="fn">First name</label>
+      <input id="fn" type="text" placeholder="Jane" autocorrect="off" autocapitalize="words" value="${fn}">
+      <div class="err-txt" id="fn-err" style="display:none">Required</div>
+    </div>
+    <div class="field" style="margin-bottom:20px">
+      <label for="ln">Last name</label>
+      <input id="ln" type="text" placeholder="Smith" autocorrect="off" autocapitalize="words" value="${ln}">
+      <div class="err-txt" id="ln-err" style="display:none">Required</div>
+    </div>
+    <button class="btn btn-blue" id="submitBtn" onclick="submit('${steps}','${week.s}','${week.e}')">
+      Submit to Smartsheet
+    </button>
+    <div class="status" id="status"></div>`;
+}
+
+async function submit(steps, weekStart, weekEnd){
+  const fnEl=document.getElementById("fn");
+  const lnEl=document.getElementById("ln");
+  const btn=document.getElementById("submitBtn");
+  const st=document.getElementById("status");
+  let ok=true;
+
+  if(!fnEl.value.trim()){fnEl.classList.add("err");document.getElementById("fn-err").style.display="block";ok=false;}
+  else{fnEl.classList.remove("err");document.getElementById("fn-err").style.display="none";}
+  if(!lnEl.value.trim()){lnEl.classList.add("err");document.getElementById("ln-err").style.display="block";ok=false;}
+  else{lnEl.classList.remove("err");document.getElementById("ln-err").style.display="none";}
+  if(!ok) return;
+
+  btn.disabled=true;
+  btn.textContent="Submitting…";
+  st.className="status";
+
+  const body=JSON.stringify({
+    cells:[
+      {columnId:COL.firstName, value:fnEl.value.trim()},
+      {columnId:COL.lastName,  value:lnEl.value.trim()},
+      {columnId:COL.weekStart, value:weekStart},
+      {columnId:COL.weekEnd,   value:weekEnd},
+      {columnId:COL.steps,     value:parseInt(steps)},
+      {columnId:COL.source,    value:"Apple Health"}
+    ]
+  });
+
+  try{
+    const res=await fetch("https://api.smartsheet.com/2.0/sheets/"+SHEET_ID+"/rows",{
+      method:"POST",
+      headers:{"Authorization":"Bearer "+API_TOKEN,"Content-Type":"application/json"},
+      body
+    });
+    const data=await res.json();
+    if(res.ok){
+      btn.textContent="Submitted!";
+      btn.style.background="#34C759";
+      fnEl.disabled=true;
+      lnEl.disabled=true;
+      st.className="status success";
+      st.innerHTML="&#10003; <strong>"+fmt(steps)+" steps</strong> logged for "+fnEl.value.trim()+" "+lnEl.value.trim()+"<br><span style='font-size:12px;opacity:.8'>Week of "+weekStart+"</span>";
+    }else{
+      throw new Error(data.message||"Error "+data.errorCode);
+    }
+  }catch(e){
+    btn.disabled=false;
+    btn.textContent="Try again";
+    st.className="status error";
+    st.textContent="Submission failed: "+e.message;
+  }
+}
+
+render();
+</script>
+</body>
+</html>
